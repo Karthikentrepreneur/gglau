@@ -23,12 +23,15 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col relative">
       {/* ✅ Add SEO component here */}
-      <SEO 
+      <SEO
         title="GGL Australia | Freight Forwarding, Logistics & Supply Chain Experts"
         description="GGL Australia provides reliable freight forwarding, advanced logistics, and smart supply chain solutions. From international shipping to warehousing, we connect businesses with efficient end-to-end logistics services."
         keywords="GGL Australia, Freight forwarding services, Supply chain solutions, Logistics experts, International freight, Global shipping, Warehousing services, Transportation logistics, 1 Global Enterprises, End-to-end supply chain"
         url="https://www.gglaustralia.com/"
         image="https://www.gglaustralia.com/lovable-uploads/ggl-logo.png"
+        extraMeta={{
+          "google-site-verification": "bbr6J6GzhDAbK0P6IGtWfD0_DDicrjI0Sli8oXqyuYo",
+        }}
       />
 
       <Header />
