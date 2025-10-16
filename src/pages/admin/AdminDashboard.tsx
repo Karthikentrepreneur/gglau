@@ -56,18 +56,22 @@ const emptyFormState: FormState = {
 };
 
 function parseExtraMeta(value: string): Record<string, string> | null {
-  if (!value.trim()) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(trimmedValue);
     if (!parsed || typeof parsed !== "object") {
-      throw new Error("Extra meta must be a JSON object");
+      throw new Error("Extra meta must be an object");
     }
 
     const result: Record<string, string> = {};
     Object.entries(parsed).forEach(([key, val]) => {
+      if (!key) {
+        return;
+      }
       if (typeof val === "string") {
         result[key] = val;
       } else {
@@ -75,11 +79,40 @@ function parseExtraMeta(value: string): Record<string, string> | null {
       }
     });
 
+    if (Object.keys(result).length === 0) {
+      return null;
+    }
+
     return result;
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Unable to parse extra meta JSON"
-    );
+  } catch {
+    const meta: Record<string, string> = {};
+    const entries = trimmedValue
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    entries.forEach((entry) => {
+      const separatorIndex = entry.indexOf("=") >= 0 ? entry.indexOf("=") : entry.indexOf(":");
+      if (separatorIndex <= 0) {
+        throw new Error(
+          "Extra meta must be valid JSON or key/value pairs like robots=index,follow"
+        );
+      }
+
+      const key = entry.slice(0, separatorIndex).trim();
+      const rawValue = entry.slice(separatorIndex + 1).trim();
+      if (!key) {
+        throw new Error("Extra meta entries require a key before '=' or ':'");
+      }
+      const valueWithoutQuotes = rawValue.replace(/^"(.+)"$/s, "$1");
+      meta[key] = valueWithoutQuotes;
+    });
+
+    if (Object.keys(meta).length === 0) {
+      return null;
+    }
+
+    return meta;
   }
 }
 
@@ -87,7 +120,9 @@ function formatExtraMeta(meta: Record<string, string> | null | undefined) {
   if (!meta || Object.keys(meta).length === 0) {
     return "";
   }
-  return JSON.stringify(meta, null, 2);
+  return Object.entries(meta)
+    .map(([key, val]) => `${key}=${val}`)
+    .join("\n");
 }
 
 function formatTimestamp(value?: string | null) {
@@ -337,7 +372,7 @@ export default function AdminDashboard() {
             <CardTitle>Create new SEO entry</CardTitle>
             <CardDescription>
               Provide the path and metadata you would like to manage. Extra meta
-              accepts a JSON object of name/value pairs.
+              supports JSON or simple key=value pairs on separate lines.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -391,16 +426,20 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="extraMeta">Extra meta (JSON)</Label>
+                <Label htmlFor="extraMeta">Extra meta (JSON or key=value)</Label>
                 <Textarea
                   id="extraMeta"
-                  placeholder='{"og:type": "website"}'
+                  placeholder={'og:type=website\nrobots=index,follow'}
                   rows={3}
                   value={formState.extraMeta}
                   onChange={(event) =>
                     setFormState((prev) => ({ ...prev, extraMeta: event.target.value }))
                   }
                 />
+                <p className="text-sm text-muted-foreground">
+                  Example: <code>og:title=Global Logistics</code>. Separate multiple entries
+                  with new lines or use JSON.
+                </p>
               </div>
               <CardFooter className="px-0">
                 <Button disabled={createMutation.isPending} type="submit">
@@ -532,7 +571,9 @@ export default function AdminDashboard() {
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="edit-extraMeta">Extra meta (JSON)</Label>
+                              <Label htmlFor="edit-extraMeta">
+                                Extra meta (JSON or key=value)
+                              </Label>
                               <Textarea
                                 id="edit-extraMeta"
                                 rows={3}
@@ -544,6 +585,10 @@ export default function AdminDashboard() {
                                   }))
                                 }
                               />
+                              <p className="text-sm text-muted-foreground">
+                                Use key=value pairs per line (e.g. <code>twitter:card=summary_large_image</code>)
+                                or provide a JSON object.
+                              </p>
                             </div>
                             <DialogFooter className="gap-2 sm:justify-between">
                               <div className="text-sm text-muted-foreground">
